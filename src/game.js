@@ -2,6 +2,7 @@
  * Game state, entities, and logic for Campfire Survival
  */
 
+import * as audio from './audio.js';
 import {
   TILE_SIZE,
   MAP_WIDTH,
@@ -30,6 +31,7 @@ import {
   WOLF_ATTACK_SPEED,
   WOLF_WANDER_CHANGE_INTERVAL,
   WOLF_ATTACK_RANGE,
+  WOLF_DETECTION_RANGE,
   WOLF_MEAT_DROP,
   ORB_MAX_COUNT,
   ORB_SPAWN_INTERVAL,
@@ -203,14 +205,16 @@ export class Wolf {
     this.wanderTimer = 0;
   }
 
-  update(dt, playerX, playerY, playerInLight) {
+  update(dt, playerX, playerY, playerInLight, fireX, fireY, fireRadius) {
     if (!this.alive) return false;
     const dToPlayer = dist(this.x, this.y, playerX, playerY);
 
     if (playerInLight) {
       this.state = WOLF_STATE.WANDER;
-    } else if (dToPlayer < 300) {
+    } else if (dToPlayer < WOLF_DETECTION_RANGE) {
       this.state = WOLF_STATE.ATTACK;
+    } else {
+      this.state = WOLF_STATE.WANDER;  // lose interest if player gets away
     }
 
     if (this.state === WOLF_STATE.ATTACK) {
@@ -229,6 +233,15 @@ export class Wolf {
 
     this.x += this.vx * dt;
     this.y += this.vy * dt;
+
+    // Wolves avoid the fire - push out if inside light radius
+    const dToFire = dist(this.x, this.y, fireX, fireY);
+    if (dToFire < fireRadius && fireRadius > 0) {
+      const angleAway = Math.atan2(this.y - fireY, this.x - fireX);
+      this.x = fireX + Math.cos(angleAway) * fireRadius;
+      this.y = fireY + Math.sin(angleAway) * fireRadius;
+    }
+
     this.x = clamp(this.x, 20, MAP_WIDTH * TILE_SIZE - 20);
     this.y = clamp(this.y, 20, MAP_HEIGHT * TILE_SIZE - 20);
 
@@ -539,6 +552,7 @@ export class GameState {
       return true;
     }
     if (target.type === 'treasureChest') {
+      audio.playChestOpen();
       target.obj.opened = true;
       this.player.coal += TREASURE_CHEST_COAL_AMOUNT;
       this.player.fruit += TREASURE_CHEST_FOOD_AMOUNT;
@@ -579,6 +593,7 @@ export class GameState {
       }
     } else if (tree.canChop()) {
       if (tree.chop(dt)) {
+        audio.playChop();
         this.player.wood++;
       }
     }
@@ -738,7 +753,7 @@ export class GameState {
         }
       }
       if (!wolf.alive) continue;
-      const killed = wolf.update(dt, this.player.x, this.player.y, playerInLight);
+      const killed = wolf.update(dt, this.player.x, this.player.y, playerInLight, this.campfire.x, this.campfire.y, this.campfire.getLightRadius());
       if (killed) {
         this.gameOver = true;
         this.gameOverReason = 'A wolf attacked you in the darkness!';

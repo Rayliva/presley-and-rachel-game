@@ -5,12 +5,15 @@
 import { GameState } from './game.js';
 import { Renderer } from './renderer.js';
 import { InputHandler } from './input.js';
-import { FIRE_FUEL_MAX, HUNGER_MAX } from './constants.js';
+import * as audio from './audio.js';
+import { FIRE_FUEL_MAX, HUNGER_MAX, WOLF_STATE } from './constants.js';
 
 let gameState;
 let renderer;
 let inputHandler;
 let lastTime = 0;
+let wasGameOver = false;
+let wolfGrowlCooldown = 0;
 
 function updateHUD() {
   const { player, campfire } = gameState;
@@ -38,12 +41,16 @@ function hideGameOver() {
 function startGame() {
   hideGameOver();
   hideCraftingMenu();
+  audio.stopFireCrackling();
   inputHandler?.destroy();
   const canvas = document.getElementById('game-canvas');
   gameState = new GameState();
   renderer = new Renderer(canvas, gameState);
   inputHandler = new InputHandler();
   lastTime = performance.now();
+  wasGameOver = false;
+  wolfGrowlCooldown = 0;
+  audio.startFireCrackling();
 }
 
 function showCraftingMenu() {
@@ -97,6 +104,34 @@ function gameLoop(now) {
   }
   inputHandler.consumeOneShotKeys();
 
+  // Fire crackling volume scales with fuel
+  audio.setFireVolume(gameState.campfire.fuel / FIRE_FUEL_MAX);
+
+  // Wolf growl when wolves are close (ATTACK state)
+  wolfGrowlCooldown -= dt;
+  if (wolfGrowlCooldown <= 0) {
+    const attackingWolf = gameState.wolves.find(
+      w => w.alive && w.state === WOLF_STATE.ATTACK
+    );
+    if (attackingWolf) {
+      const d = Math.hypot(
+        attackingWolf.x - gameState.player.x,
+        attackingWolf.y - gameState.player.y
+      );
+      if (d < 200) {
+        audio.playWolfGrowl();
+        wolfGrowlCooldown = 2;
+      }
+    }
+  }
+
+  // Death OOF when game over
+  if (gameState.gameOver && !wasGameOver) {
+    wasGameOver = true;
+    audio.playDeathOof();
+    audio.stopFireCrackling();
+  }
+
   renderer.render();
   updateHUD();
 
@@ -116,6 +151,15 @@ function init() {
   const canvas = document.getElementById('game-canvas');
   canvas.width = 800;
   canvas.height = 600;
+
+  // Resume audio on first user interaction (browser autoplay policy)
+  const resumeAudio = () => {
+    audio.resumeAudio();
+    document.removeEventListener('click', resumeAudio);
+    document.removeEventListener('keydown', resumeAudio);
+  };
+  document.addEventListener('click', resumeAudio);
+  document.addEventListener('keydown', resumeAudio);
 
   startGame();
 

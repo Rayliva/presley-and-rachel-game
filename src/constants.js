@@ -38,6 +38,7 @@ export const WOLF_WANDER_SPEED = 50;
 export const WOLF_ATTACK_SPEED = 90;
 export const WOLF_WANDER_CHANGE_INTERVAL = 2;  // seconds
 export const WOLF_ATTACK_RANGE = 25;  // distance to kill player
+export const WOLF_DETECTION_RANGE = 100;  // only chase when player gets this close
 export const WOLF_MEAT_DROP = 1;
 
 // Blue orbs and forcefield
