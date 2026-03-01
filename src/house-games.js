@@ -156,6 +156,148 @@ function getConnect4AIMove(cols) {
 }
 
 /**
+ * Hangman - guess letters to reveal the word
+ */
+export function playHangman(data, letter) {
+  if (data.winner || !letter || letter.length !== 1) return data;
+  const upper = letter.toUpperCase();
+  if (data.guessed.includes(upper)) return data;
+
+  const next = { ...data, guessed: [...data.guessed, upper] };
+  if (data.word.includes(upper)) {
+    const allRevealed = [...data.word].every((c) => next.guessed.includes(c));
+    if (allRevealed) next.winner = 'X';
+  } else {
+    next.wrongCount = data.wrongCount + 1;
+    if (next.wrongCount >= data.maxWrong) next.winner = 'O';
+  }
+  return next;
+}
+
+/**
+ * Dots and Boxes - player X vs AI O. Draw lines to complete boxes.
+ * 3x3 grid of boxes (4x4 dots). Player wins with more boxes.
+ */
+export function playDotsAndBoxes(data, edgeType, row, col) {
+  if (data.winner) return data;
+  const { rows, cols, hEdges, vEdges, boxes } = data;
+  if (edgeType === 'h') {
+    if (row < 0 || row > rows || col < 0 || col >= cols || hEdges[row][col]) return data;
+  } else if (edgeType === 'v') {
+    if (row < 0 || row >= rows || col < 0 || col > cols || vEdges[row][col]) return data;
+  } else return data;
+
+  const next = {
+    ...data,
+    hEdges: hEdges.map(r => [...r]),
+    vEdges: vEdges.map(r => [...r]),
+    boxes: boxes.map(r => [...r]),
+  };
+  if (edgeType === 'h') next.hEdges[row][col] = 'X';
+  else next.vEdges[row][col] = 'X';
+
+  let scored = checkAndScore(next);
+  while (scored) {
+    scored = checkAndScore(next);
+  }
+  next.playerScore = next.boxes.flat().filter(b => b === 'X').length;
+  next.aiScore = next.boxes.flat().filter(b => b === 'O').length;
+
+  const totalBoxes = rows * cols;
+  if (next.playerScore + next.aiScore >= totalBoxes) {
+    next.winner = next.playerScore > next.aiScore ? 'X' : next.playerScore < next.aiScore ? 'O' : 'tie';
+    return next;
+  }
+
+  // AI turn
+  next.turn = 'O';
+  const aiMove = getDotsAndBoxesAIMove(next);
+  if (aiMove) {
+    if (aiMove.type === 'h') next.hEdges[aiMove.row][aiMove.col] = 'O';
+    else next.vEdges[aiMove.row][aiMove.col] = 'O';
+    scored = true;
+    while (scored) {
+      scored = checkAndScore(next);
+    }
+    next.playerScore = next.boxes.flat().filter(b => b === 'X').length;
+    next.aiScore = next.boxes.flat().filter(b => b === 'O').length;
+    if (next.playerScore + next.aiScore >= totalBoxes) {
+      next.winner = next.playerScore > next.aiScore ? 'X' : next.playerScore < next.aiScore ? 'O' : 'tie';
+    }
+    next.turn = 'X';
+  }
+  return next;
+}
+
+function checkAndScore(data) {
+  let scored = false;
+  for (let r = 0; r < data.rows; r++) {
+    for (let c = 0; c < data.cols; c++) {
+      if (data.boxes[r][c]) continue;
+      const top = data.hEdges[r][c];
+      const bot = data.hEdges[r + 1][c];
+      const left = data.vEdges[r][c];
+      const right = data.vEdges[r][c + 1];
+      if (top && bot && left && right) {
+        data.boxes[r][c] = data.turn;
+        scored = true;
+      }
+    }
+  }
+  return scored;
+}
+
+function getDotsAndBoxesAIMove(data) {
+  const moves = [];
+  for (let r = 0; r <= data.rows; r++) {
+    for (let c = 0; c < data.cols; c++) {
+      if (!data.hEdges[r][c]) moves.push({ type: 'h', row: r, col: c });
+    }
+  }
+  for (let r = 0; r < data.rows; r++) {
+    for (let c = 0; c <= data.cols; c++) {
+      if (!data.vEdges[r][c]) moves.push({ type: 'v', row: r, col: c });
+    }
+  }
+  if (moves.length === 0) return null;
+  return moves[Math.floor(Math.random() * moves.length)];
+}
+
+/**
+ * Hide and Seek (Presleytest) - guess which tree the figure is hiding behind
+ * Win = score >= 20 (2 correct guesses)
+ */
+const PRESLEY_POINTS_CORRECT = 10;
+const PRESLEY_POINTS_WRONG = -5;
+const PRESLEY_WIN_SCORE = 20;
+
+export function playPresleytest(data, treeIndex) {
+  if (data.winner || data.hasGuessed || treeIndex < 0 || treeIndex > 2) return data;
+  const correct = treeIndex === data.hidingIndex;
+  const next = {
+    ...data,
+    hasGuessed: true,
+    guessedIndex: treeIndex,
+    score: data.score + (correct ? PRESLEY_POINTS_CORRECT : PRESLEY_POINTS_WRONG),
+    correct,
+  };
+  if (next.score >= PRESLEY_WIN_SCORE) next.winner = 'X';
+  return next;
+}
+
+/** Start next round of Hide and Seek */
+export function presleytestNextRound(data) {
+  if (!data.hasGuessed) return data;
+  return {
+    ...data,
+    round: data.round + 1,
+    hidingIndex: Math.floor(Math.random() * 3),
+    hasGuessed: false,
+    correct: null,
+  };
+}
+
+/**
  * Sudoku 4x4 - player fills in cells
  */
 export function playSudoku(data, row, col, value) {

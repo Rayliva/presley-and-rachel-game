@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>All That Glitters - Alchemy</title>
+    <script type="module" crossorigin src="./assets/index-BwIFx3cJ.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DISm1y4s.css">
+  </head>
+  <body>
+    <div id="game-container" class="hidden">
+      <header class="game-header">
+        <h1>All That Glitters</h1>
+        <div class="score-display">
+          <span id="timer-display" class="timer-display hidden">Time: <strong id="timer">0</strong></span>
+          <span>Board <strong id="board">1</strong></span>
+          <span>Score: <strong id="score">0</strong></span>
+        </div>
+      </header>
+      <main class="game-main">
+        <canvas id="game-canvas"></canvas>
+        <aside class="game-sidebar">
+          <div class="current-rune">
+            <button type="button" class="discard-btn" id="discard-btn">Discard to Forge</button>
+            <p class="discard-hint">Right-click on board to discard</p>
+          </div>
+          <div class="forge-zone">
+            <div id="forge-display" class="forge-ring" role="img" aria-label="Discard pile"></div>
+          </div>
+          <button type="button" class="new-game-btn" id="new-game-btn">New Game</button>
+        </aside>
+      </main>
+    </div>
+    <div id="home-screen" class="home-screen">
+      <div class="home-content">
+        <h1 class="home-title">All That Glitters</h1>
+        <p class="home-subtitle">Alchemy</p>
+        <div class="home-section">
+          <h3>Mode</h3>
+          <div class="home-options mode-options">
+            <button type="button" class="home-option-btn selected" data-mode="strategic">
+              <strong>Strategic</strong><br>Take your time, plan each move
+            </button>
+            <button type="button" class="home-option-btn" data-mode="time">
+              <strong>Time</strong><br>Race against the clock
+            </button>
+          </div>
+        </div>
+        <div class="home-section">
+          <h3>Difficulty</h3>
+          <div class="home-options difficulty-options">
+            <button type="button" class="home-option-btn selected" data-difficulty="easy">
+              <strong>Easy</strong><br>Start at Board 1
+            </button>
+            <button type="button" class="home-option-btn" data-difficulty="medium">
+              <strong>Medium</strong><br>Start at Board 4
+            </button>
+            <button type="button" class="home-option-btn" data-difficulty="difficult">
+              <strong>Difficult</strong><br>Start at Board 7
+            </button>
+          </div>
+        </div>
+        <button type="button" class="home-play-btn" id="home-play-btn">Play</button>
+      </div>
+    </div>
+    <div id="level-complete-modal" class="modal" hidden>
+      <div class="modal-content">
+        <h2>Board Complete!</h2>
+        <p class="level-message">Continue to board <strong id="next-level">2</strong></p>
+        <div class="board-stats">
+          <p><strong>Ranking:</strong> <span id="current-ranking">—</span></p>
+          <p><strong>Next rank at:</strong> <span id="next-rank-score">—</span></p>
+          <p><strong>Game time:</strong> <span id="game-time">—</span></p>
+          <p><strong>Boards cleared:</strong> <span id="boards-cleared">—</span></p>
+          <p><strong>Best streak (no discard):</strong> <span id="max-streak">—</span></p>
+        </div>
+        <button type="button" class="restart-btn" id="continue-btn">Continue</button>
+      </div>
+    </div>
+    <div id="game-over-modal" class="modal" hidden>
+      <div class="modal-content game-over-content">
+        <h2 class="game-over-title">Game Over</h2>
+        <div class="game-over-stats">
+          <span>Score: <strong id="final-score">0</strong></span>
+          <span>Ranking: <strong id="final-ranking">—</strong></span>
+        </div>
+        <div class="name-entry">
+          <label for="highscore-name">Your name (optional)</label>
+          <div class="name-entry-row">
+            <input type="text" id="highscore-name" placeholder="Enter your name" maxlength="20" />
+            <button type="button" class="name-save-btn" id="highscore-save-btn" title="Save name">Enter</button>
+          </div>
+          <span class="name-entry-hint">Press Enter to save</span>
+        </div>
+        <div class="leaderboard">
+          <h3>High Scores</h3>
+          <div class="leaderboard-body">
+            <ol id="leaderboard-list"></ol>
+            <div id="leaderboard-below"></div>
+          </div>
+          <div id="leaderboard-pages" class="leaderboard-pages"></div>
+        </div>
+        <button type="button" class="restart-btn" id="restart-btn">Play Again</button>
+      </div>
+    </div>
+    <div id="cursor-rune" class="cursor-rune" aria-hidden="true"></div>
+  </body>
+</html>

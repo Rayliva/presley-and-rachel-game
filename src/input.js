@@ -74,4 +74,16 @@ export class InputHandler {
     this.keys.e = false;
     this.keys.eat = false;
   }
+
+  /** Reset all keys - use when returning from iframe/overlay that may have captured input */
+  resetKeys() {
+    this.keys.w = false;
+    this.keys.a = false;
+    this.keys.s = false;
+    this.keys.d = false;
+    this.keys.e = false;
+    this.keys.eat = false;
+    this.ePressed = false;
+    this.eatPressed = false;
+  }
 }

@@ -2,7 +2,7 @@
  * Renders the house interior (top-down view)
  */
 
-import { HOUSE_WIDTH, HOUSE_HEIGHT, GAME_STATIONS, HOUSE_EXIT } from './house.js';
+import { HOUSE_WIDTH, HOUSE_HEIGHT, HOUSE_EXIT } from './house.js';
 
 export function renderHouseInterior(ctx, houseState, width, height) {
   const scale = Math.min(width / HOUSE_WIDTH, height / HOUSE_HEIGHT);
@@ -32,7 +32,7 @@ export function renderHouseInterior(ctx, houseState, width, height) {
   ctx.fillRect(0, HOUSE_HEIGHT - 12, HOUSE_WIDTH, 12);
 
   // Game stations - tables with game boards
-  for (const station of GAME_STATIONS) {
+  for (const station of houseState.getGameStations()) {
     ctx.fillStyle = '#8d6e63';
     ctx.fillRect(station.x - 4, station.y - 4, station.w + 8, station.h + 8);
     ctx.strokeStyle = '#5d4037';

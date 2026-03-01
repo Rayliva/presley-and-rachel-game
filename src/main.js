@@ -7,7 +7,8 @@ import { Renderer } from './renderer.js';
 import { InputHandler } from './input.js';
 import { HouseState } from './house.js';
 import { renderHouseInterior } from './house-renderer.js';
-import { playTicTacToe, playConnect4, playSudoku } from './house-games.js';
+import { playTicTacToe, playConnect4, playSudoku, playHangman, playDotsAndBoxes, playPresleytest, presleytestNextRound } from './house-games.js';
+import { GAME_NAMES } from './house.js';
 import * as audio from './audio.js';
 import { FIRE_FUEL_MAX, HUNGER_MAX, WOLF_STATE, PERKS } from './constants.js';
 
@@ -108,7 +109,8 @@ function hideCraftingMenu() {
 }
 
 function showHouseOverlay() {
-  houseState = new HouseState(gameState);
+  const cottageIndex = gameState.currentCottage?.index ?? 0;
+  houseState = new HouseState(gameState, cottageIndex);
   const overlay = document.getElementById('house-overlay');
   overlay.classList.remove('hidden');
   houseCanvas = document.getElementById('house-canvas');
@@ -135,7 +137,8 @@ function showHouseGameOverlay(gameId, gameData) {
     document.removeEventListener('keydown', houseGameOverlayKeyHandler);
   }
   houseGameOverlayKeyHandler = (e) => {
-    if (e.key === 'Escape' || e.key.toLowerCase() === 'e') {
+    const k = e.key?.toLowerCase();
+    if (e.key === 'Escape' || k === 'e' || k === 'x') {
       hideHouseGameOverlay();
       e.preventDefault();
       e.stopPropagation();
@@ -146,20 +149,31 @@ function showHouseGameOverlay(gameId, gameData) {
 
 function hideHouseGameOverlay() {
   const overlay = document.getElementById('house-game-overlay');
-  overlay.classList.add('hidden');
+  const content = document.getElementById('house-game-content');
   if (houseState) {
     houseState.closeGame();
   }
+  // Clear content first to remove iframe from DOM (releases keyboard focus)
+  if (content) content.innerHTML = '';
+  overlay.classList.add('hidden');
   if (houseGameOverlayKeyHandler) {
     document.removeEventListener('keydown', houseGameOverlayKeyHandler, { capture: true });
     houseGameOverlayKeyHandler = null;
   }
+  inputHandler?.resetKeys();
+  // Defer focus so DOM update completes first
+  requestAnimationFrame(() => {
+    document.activeElement?.blur();
+    const houseCanvas = document.getElementById('house-canvas');
+    if (houseCanvas) houseCanvas.focus();
+  });
 }
 
 function renderHouseGame(container, gameId, data) {
   container.innerHTML = '';
+  container.style.maxWidth = '';
   const h2 = document.createElement('h2');
-  h2.textContent = gameId === 'tictactoe' ? 'Tic Tac Toe' : gameId === 'connect4' ? 'Connect 4' : 'Sudoku';
+  h2.textContent = GAME_NAMES[gameId] || gameId;
   container.appendChild(h2);
 
   if (gameId === 'tictactoe') {
@@ -251,9 +265,154 @@ function renderHouseGame(container, gameId, data) {
       numRow.appendChild(btn);
     }
     container.appendChild(numRow);
+  } else if (gameId === 'hangman') {
+    const wordDisplay = document.createElement('div');
+    wordDisplay.className = 'hangman-word';
+    wordDisplay.style.cssText = 'font-size: 1.5rem; letter-spacing: 0.3em; margin: 1rem 0; font-family: monospace;';
+    const word = data.word || '';
+    const guessed = data.guessed || [];
+    wordDisplay.textContent = [...word].map((c) => (guessed.includes(c) ? c : '_')).join(' ');
+    container.appendChild(wordDisplay);
+    const wrongEl = document.createElement('p');
+    wrongEl.textContent = `Wrong: ${data.wrongCount || 0}/${data.maxWrong || 6}`;
+    wrongEl.style.color = data.wrongCount >= 5 ? 'var(--color-danger)' : '';
+    container.appendChild(wrongEl);
+    const alphaRow = document.createElement('div');
+    alphaRow.className = 'hangman-letters';
+    alphaRow.style.cssText = 'display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 1rem 0;';
+    for (let i = 0; i < 26; i++) {
+      const letter = String.fromCharCode(65 + i);
+      const btn = document.createElement('button');
+      btn.className = 'game-cell';
+      btn.textContent = letter;
+      btn.style.cssText = 'width: 32px; height: 32px; font-size: 0.9rem; cursor: pointer;';
+      if (guessed.includes(letter)) {
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+      }
+      if (!data.winner) {
+        btn.addEventListener('click', () => {
+          houseState.gameData = playHangman(houseState.gameData, letter);
+          renderHouseGame(container, 'hangman', houseState.gameData);
+        });
+      }
+      alphaRow.appendChild(btn);
+    }
+    container.appendChild(alphaRow);
+  } else if (gameId === 'presleytest') {
+    const scoreRound = document.createElement('div');
+    scoreRound.style.cssText = 'display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;';
+    scoreRound.innerHTML = `<span>Round <strong>${data.round}</strong></span><span>Score: <strong>${data.score}</strong></span>`;
+    container.appendChild(scoreRound);
+    const treesRow = document.createElement('div');
+    treesRow.className = 'presley-trees';
+    treesRow.style.cssText = 'display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;';
+    const treeEmojis = ['🌲', '🌳', '🌴'];
+    for (let i = 0; i < 3; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'game-cell tree-slot';
+      btn.dataset.index = i;
+      btn.style.cssText = 'width: 80px; height: 100px; font-size: 2.5rem; cursor: pointer; display: flex; flex-direction: column; align-items: center;';
+      const emoji = document.createElement('span');
+      emoji.textContent = treeEmojis[i];
+      emoji.style.fontSize = '2rem';
+      btn.appendChild(emoji);
+      const figure = document.createElement('span');
+      figure.className = 'stick-figure';
+      figure.textContent = '🧍';
+      figure.style.cssText = 'font-size: 1.2rem; margin-top: 4px;';
+      figure.style.visibility = data.hasGuessed && data.hidingIndex === i ? 'visible' : 'hidden';
+      if (data.hasGuessed) {
+        if (i === data.hidingIndex) btn.classList.add('correct');
+        if (!data.correct && i === data.guessedIndex) btn.classList.add('wrong');
+      }
+      btn.appendChild(figure);
+      if (!data.winner && !data.hasGuessed) {
+        btn.addEventListener('click', () => {
+          houseState.gameData = playPresleytest(houseState.gameData, i);
+          renderHouseGame(container, 'presleytest', houseState.gameData);
+        });
+      }
+      treesRow.appendChild(btn);
+    }
+    container.appendChild(treesRow);
+    if (data.hasGuessed && !data.winner) {
+      const feedback = document.createElement('p');
+      feedback.className = 'feedback';
+      feedback.textContent = data.correct ? `Correct! +10 points` : `Wrong tree! -5 points`;
+      feedback.style.color = data.correct ? 'var(--color-accent)' : 'var(--color-danger)';
+      feedback.style.marginTop = '0.5rem';
+      container.appendChild(feedback);
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'game-cell';
+      nextBtn.textContent = 'Next Round';
+      nextBtn.style.cssText = 'margin-top: 0.5rem; cursor: pointer;';
+      nextBtn.addEventListener('click', () => {
+        houseState.gameData = presleytestNextRound(houseState.gameData);
+        renderHouseGame(container, 'presleytest', houseState.gameData);
+      });
+      container.appendChild(nextBtn);
+    }
+  } else if (gameId === 'dotsandboxes') {
+    const { rows, cols, hEdges, vEdges, boxes } = data;
+    const scoreEl = document.createElement('div');
+    scoreEl.style.cssText = 'margin-bottom: 0.5rem; font-size: 0.95rem;';
+    scoreEl.textContent = `You: ${data.playerScore}  AI: ${data.aiScore}`;
+    container.appendChild(scoreEl);
+    const cellSize = 48;
+    const dotSize = 8;
+    const edgeThick = 6;
+    const board = document.createElement('div');
+    board.className = 'dots-and-boxes';
+    board.style.cssText = `position: relative; width: ${(cols + 1) * cellSize}px; height: ${(rows + 1) * cellSize}px; margin: 0 auto;`;
+    for (let r = 0; r <= rows; r++) {
+      for (let c = 0; c <= cols; c++) {
+        const dot = document.createElement('div');
+        dot.style.cssText = `position: absolute; left: ${c * cellSize - dotSize / 2}px; top: ${r * cellSize - dotSize / 2}px; width: ${dotSize}px; height: ${dotSize}px; background: #fff; border-radius: 50%;`;
+        board.appendChild(dot);
+      }
+    }
+    for (let r = 0; r <= rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const edge = document.createElement('button');
+        const owner = hEdges[r]?.[c];
+        edge.style.cssText = `position: absolute; left: ${c * cellSize + dotSize}px; top: ${r * cellSize - edgeThick / 2}px; width: ${cellSize - dotSize}px; height: ${edgeThick}px; padding: 0; background: ${owner ? (owner === 'X' ? '#7cb87c' : '#e67e22') : 'rgba(255,255,255,0.3)'}; border: none; cursor: ${owner || data.winner ? 'default' : 'pointer'};`;
+        if (!owner && !data.winner) {
+          edge.addEventListener('click', () => {
+            houseState.gameData = playDotsAndBoxes(houseState.gameData, 'h', r, c);
+            renderHouseGame(container, 'dotsandboxes', houseState.gameData);
+          });
+        }
+        board.appendChild(edge);
+      }
+    }
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c <= cols; c++) {
+        const edge = document.createElement('button');
+        const owner = vEdges[r]?.[c];
+        edge.style.cssText = `position: absolute; left: ${c * cellSize - edgeThick / 2}px; top: ${r * cellSize + dotSize}px; width: ${edgeThick}px; height: ${cellSize - dotSize}px; padding: 0; background: ${owner ? (owner === 'X' ? '#7cb87c' : '#e67e22') : 'rgba(255,255,255,0.3)'}; border: none; cursor: ${owner || data.winner ? 'default' : 'pointer'};`;
+        if (!owner && !data.winner) {
+          edge.addEventListener('click', () => {
+            houseState.gameData = playDotsAndBoxes(houseState.gameData, 'v', r, c);
+            renderHouseGame(container, 'dotsandboxes', houseState.gameData);
+          });
+        }
+        board.appendChild(edge);
+      }
+    }
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const box = document.createElement('div');
+        const owner = boxes[r]?.[c];
+        box.style.cssText = `position: absolute; left: ${c * cellSize + dotSize}px; top: ${r * cellSize + dotSize}px; width: ${cellSize - dotSize}px; height: ${cellSize - dotSize}px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: bold; color: ${owner === 'X' ? '#7cb87c' : owner === 'O' ? '#e67e22' : 'transparent'};`;
+        box.textContent = owner || '';
+        board.appendChild(box);
+      }
+    }
+    container.appendChild(board);
   }
 
-  if (data.winner) {
+  if (data && data.winner) {
     const result = document.createElement('div');
     result.className = 'game-result';
     if (data.winner === 'X' || data.winner === 'x' || data.winner === 'R') {

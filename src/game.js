@@ -115,9 +115,10 @@ export class Campfire {
  * Cottage - little home at map edge with porch light that repels wolves (like fire)
  */
 export class Cottage {
-  constructor(x, y) {
+  constructor(x, y, index) {
     this.x = x;
     this.y = y;
+    this.index = index;
   }
 
   getLightRadius() {
@@ -447,7 +448,7 @@ export class GameState {
       { x: m, y: m + 120 },
       { x: m, y: h - m - 120 },
     ].slice(0, COTTAGE_COUNT);
-    return positions.map(({ x, y }) => new Cottage(x, y));
+    return positions.map(({ x, y }, i) => new Cottage(x, y, i));
   }
 
   /** Pick random position along map edge */
