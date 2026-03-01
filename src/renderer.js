@@ -22,7 +22,51 @@ export class Renderer {
     this.gameState = gameState;
     this.cameraX = 0;
     this.cameraY = 0;
+    this.pigImage = null;
+    this.pigImageLoaded = false;
+    this.wolfImage = null;
+    this.wolfImageLoaded = false;
+    this.playerHeadImage = null;
+    this.playerHeadImageLoaded = false;
+    this.loadPigImage();
+    this.loadWolfImage();
+    this.loadPlayerHeadImage();
     this.resize();
+  }
+
+  loadPigImage() {
+    const img = new Image();
+    img.onload = () => {
+      this.pigImage = img;
+      this.pigImageLoaded = true;
+    };
+    img.onerror = () => {
+      // Fallback: embedded SVG pig (pixel-art style) when public/pig.png is missing
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect fill="#e8b4a0" x="8" y="14" width="24" height="18" rx="4"/><rect fill="#d4a090" x="30" y="18" width="10" height="8" rx="2"/><circle fill="#8b7355" cx="38" cy="22" r="2"/><rect fill="#e8b4a0" x="4" y="20" width="6" height="4" rx="1" transform="rotate(-20 7 22)"/><rect fill="#c49580" x="10" y="12" width="4" height="3"/><rect fill="#c49580" x="26" y="12" width="4" height="3"/><rect fill="#c49580" x="10" y="30" width="4" height="3"/><rect fill="#c49580" x="26" y="30" width="4" height="3"/></svg>`;
+      img.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    };
+    // Try public/pig.png first (add your image there); falls back to SVG if missing
+    img.src = '/pig.png';
+  }
+
+  loadWolfImage() {
+    const img = new Image();
+    img.onload = () => {
+      this.wolfImage = img;
+      this.wolfImageLoaded = true;
+    };
+    img.onerror = () => { this.wolfImageLoaded = false; };
+    img.src = '/wolf.png';
+  }
+
+  loadPlayerHeadImage() {
+    const img = new Image();
+    img.onload = () => {
+      this.playerHeadImage = img;
+      this.playerHeadImageLoaded = true;
+    };
+    img.onerror = () => { this.playerHeadImageLoaded = false; };
+    img.src = '/player-head.png';
   }
 
   resize() {
@@ -88,11 +132,12 @@ export class Renderer {
     }
 
     const { campfire, player, trees, pigs, wolves, orbs, meatDrops, treasureChests, craftingTable, cottages, forcefieldActive } = this.gameState;
-    const lightRadius = campfire.getLightRadius();
+    const fireMult = player.hasPerk?.('fire_radius') ? 1.2 : 1;
+    const lightRadius = campfire.getLightRadius(fireMult);
 
     // Draw forcefield (blue fire look) - same size as fire glow
     if (forcefieldActive) {
-      const ffRadius = campfire.getLightRadius();
+      const ffRadius = campfire.getLightRadius(fireMult);
       const ffx = campfire.x - this.cameraX + width / 2;
       const ffy = campfire.y - this.cameraY + height / 2;
       const t = (performance.now() / 200) % 1;
@@ -247,28 +292,35 @@ export class Renderer {
     }
 
     // Draw pigs
+    const pigSize = 32;
     for (const pig of pigs) {
       if (!pig.alive) continue;
       const px = pig.x - this.cameraX + width / 2;
       const py = pig.y - this.cameraY + height / 2;
-      ctx.fillStyle = '#e8b4a0';
-      ctx.beginPath();
-      ctx.ellipse(px, py, 12, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#c49580';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      // Snout
-      ctx.fillStyle = '#d4a090';
-      ctx.beginPath();
-      ctx.ellipse(px + 10, py, 6, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#c49580';
-      ctx.stroke();
-      ctx.fillStyle = '#8b7355';
-      ctx.beginPath();
-      ctx.ellipse(px + 14, py, 2, 2, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (this.pigImageLoaded && this.pigImage) {
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.drawImage(this.pigImage, -pigSize / 2, -pigSize / 2, pigSize, pigSize);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = '#e8b4a0';
+        ctx.beginPath();
+        ctx.ellipse(px, py, 12, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#c49580';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#d4a090';
+        ctx.beginPath();
+        ctx.ellipse(px + 10, py, 6, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#c49580';
+        ctx.stroke();
+        ctx.fillStyle = '#8b7355';
+        ctx.beginPath();
+        ctx.ellipse(px + 14, py, 2, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // Draw meat drops
@@ -323,23 +375,33 @@ export class Renderer {
     }
 
     // Draw wolves
+    const wolfSize = 32;
     for (const wolf of wolves) {
       if (!wolf.alive) continue;
       const wx = wolf.x - this.cameraX + width / 2;
       const wy = wolf.y - this.cameraY + height / 2;
-      ctx.fillStyle = wolf.state === WOLF_STATE.ATTACK ? '#8b4513' : '#5c4033';
-      ctx.beginPath();
-      ctx.ellipse(wx, wy, 14, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#3d2914';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      // Eyes
-      ctx.fillStyle = wolf.state === WOLF_STATE.ATTACK ? '#ff4444' : '#2d2d2d';
-      ctx.beginPath();
-      ctx.arc(wx - 4, wy - 2, 2, 0, Math.PI * 2);
-      ctx.arc(wx + 4, wy - 2, 2, 0, Math.PI * 2);
-      ctx.fill();
+      if (this.wolfImageLoaded && this.wolfImage) {
+        ctx.save();
+        if (wolf.state === WOLF_STATE.ATTACK) {
+          ctx.globalAlpha = 0.9 + Math.sin(performance.now() / 150) * 0.1;
+        }
+        ctx.translate(wx, wy);
+        ctx.drawImage(this.wolfImage, -wolfSize / 2, -wolfSize / 2, wolfSize, wolfSize);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = wolf.state === WOLF_STATE.ATTACK ? '#8b4513' : '#5c4033';
+        ctx.beginPath();
+        ctx.ellipse(wx, wy, 14, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#3d2914';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = wolf.state === WOLF_STATE.ATTACK ? '#ff4444' : '#2d2d2d';
+        ctx.beginPath();
+        ctx.arc(wx - 4, wy - 2, 2, 0, Math.PI * 2);
+        ctx.arc(wx + 4, wy - 2, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     // Draw campfire
@@ -384,13 +446,9 @@ export class Renderer {
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    // Head
-    ctx.fillStyle = '#f5deb3';
-    ctx.beginPath();
-    ctx.arc(px, py - 12 * scale, 5 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    // Body
+    const headRadius = 5 * scale;
+    const headY = py - 12 * scale;
+    // Body (draw first so it appears behind the head)
     ctx.beginPath();
     ctx.moveTo(px, py - 7 * scale);
     ctx.lineTo(px, py + 12 * scale);
@@ -483,6 +541,19 @@ export class Renderer {
         ctx.lineWidth = 1;
         ctx.stroke();
       }
+    }
+    // Head (draw last so it appears in front of body, arms, legs)
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 2;
+    if (this.playerHeadImageLoaded && this.playerHeadImage) {
+      const size = headRadius * 2.4 * 3;
+      ctx.drawImage(this.playerHeadImage, px - size / 2, headY - size / 2, size, size);
+    } else {
+      ctx.fillStyle = '#f5deb3';
+      ctx.beginPath();
+      ctx.arc(px, headY, headRadius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     }
   }
 }

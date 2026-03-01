@@ -67,3 +67,18 @@ export const CRAFTING_TABLE_SPAWN_ONCE = true;  // only one crafting table can e
 // Cottages - little homes at map edges with porch lights that repel wolves
 export const COTTAGE_COUNT = 6;
 export const PORCH_LIGHT_RADIUS = 70;  // smaller than fire, keeps wolves away
+
+// House interior - top-down, games give perks
+export const HOUSE_PERK_CHANCE = 0.6;  // 60% chance to get perk when winning a game
+
+/** Perk definitions: id, name, description, icon (emoji or short code) */
+export const PERKS = [
+  { id: 'fire_slow', name: 'Fire Keeper', description: 'Fire burns 25% slower', icon: '🔥' },
+  { id: 'berries_double', name: 'Berry Finder', description: 'Get 2 berries when shaking trees', icon: '🫐' },
+  { id: 'hunger_slow', name: 'Iron Stomach', description: 'Hunger depletes 25% slower', icon: '🍽️' },
+  { id: 'wood_extra', name: 'Woodcutter', description: 'Trees give +1 wood when chopped', icon: '🪓' },
+  { id: 'meat_extra', name: 'Hunter', description: 'Pigs and wolves drop +1 meat', icon: '🥩' },
+  { id: 'fruit_extra', name: 'Fruitful Shake', description: 'Shaking trees gives +1 berry', icon: '🍇' },
+  { id: 'fire_radius', name: 'Bright Flame', description: 'Fire light radius 20% larger', icon: '✨' },
+  { id: 'cook_faster', name: 'Master Chef', description: 'Meat cooks 25% faster', icon: '🍖' },
+];

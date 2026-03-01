@@ -49,6 +49,7 @@ import {
   COAL_FUEL_VALUE,
   COTTAGE_COUNT,
   PORCH_LIGHT_RADIUS,
+  PERKS,
 } from './constants.js';
 
 function dist(ax, ay, bx, by) {
@@ -73,15 +74,18 @@ export class Campfire {
     this.cookedMeatReady = 0;   // cooked pieces waiting to be picked up
   }
 
-  getLightRadius() {
+  getLightRadius(radiusMultiplier = 1) {
     if (this.fuel <= 0) return 0;
     const t = this.fuel / FIRE_FUEL_MAX;
-    return FIRE_LIGHT_MIN + t * (FIRE_LIGHT_MAX - FIRE_LIGHT_MIN);
+    const base = FIRE_LIGHT_MIN + t * (FIRE_LIGHT_MAX - FIRE_LIGHT_MIN);
+    return base * radiusMultiplier;
   }
 
-  consumeFuel(dt) {
+  consumeFuel(dt, fireSlowPerk = false) {
     if (this.fuel > 0) {
-      this.fuel -= FIRE_FUEL_CONSUMPTION * dt;
+      let rate = FIRE_FUEL_CONSUMPTION * dt;
+      if (fireSlowPerk) rate *= 0.75;
+      this.fuel -= rate;
       this.fuel = Math.max(0, this.fuel);
     }
   }
@@ -94,9 +98,10 @@ export class Campfire {
     return this.fuel > 0;
   }
 
-  updateCooking(dt) {
+  updateCooking(dt, cookFasterPerk = false) {
     if (this.cookingMeat <= 0) return;
-    this.cookingProgress += dt / MEAT_COOK_TIME;
+    const cookTime = cookFasterPerk ? MEAT_COOK_TIME * 0.75 : MEAT_COOK_TIME;
+    this.cookingProgress += dt / cookTime;
     while (this.cookingProgress >= 1 && this.cookingMeat > 0) {
       this.cookingProgress -= 1;
       this.cookingMeat--;
@@ -329,14 +334,27 @@ export class Player {
     this.hasAxe = true;  // player starts with axe
     this.interactTarget = null;
     this.interactProgress = 0;
+    this.perks = [];  // permanent perks from house games: [{ id, ... }]
+  }
+
+  hasPerk(perkId) {
+    return this.perks.some(p => p.id === perkId);
+  }
+
+  addPerk(perk) {
+    if (!this.hasPerk(perk.id)) {
+      this.perks.push({ ...perk });
+    }
   }
 
   getMeatTotal() {
     return this.rawMeat + this.cookedMeat;
   }
 
-  consumeHunger(dt) {
-    this.hunger -= HUNGER_DEPLETION * dt;
+  consumeHunger(dt, hungerSlowPerk = false) {
+    let rate = HUNGER_DEPLETION * dt;
+    if (hungerSlowPerk) rate *= 0.75;
+    this.hunger -= rate;
     this.hunger = Math.max(0, this.hunger);
   }
 
@@ -409,6 +427,8 @@ export class GameState {
     this.gameOver = false;
     this.gameOverReason = null;
     this.craftingMenuOpen = false;  // when true, game is paused
+    this.inHouse = false;  // when true, inside cottage - fire/hunger paused
+    this.currentCottage = null;  // which cottage we entered
   }
 
   /** Spawn cottages near map edges with porch lights */
@@ -449,7 +469,8 @@ export class GameState {
   }
 
   getForcefieldRadius() {
-    return this.campfire.getLightRadius();
+    const fireMult = this.player.hasPerk('fire_radius') ? 1.2 : 1;
+    return this.campfire.getLightRadius(fireMult);
   }
 
   spawnTrees() {
@@ -507,8 +528,9 @@ export class GameState {
   }
 
   isPlayerInLight() {
-    // Fire light
-    const fireR = this.campfire.getLightRadius();
+    // Fire light (perk: Bright Flame)
+    const fireMult = this.player.hasPerk('fire_radius') ? 1.2 : 1;
+    const fireR = this.campfire.getLightRadius(fireMult);
     if (dist(this.player.x, this.player.y, this.campfire.x, this.campfire.y) <= fireR) return true;
     // Porch lights
     for (const cottage of this.cottages) {
@@ -546,6 +568,15 @@ export class GameState {
       const d = dist(px, py, this.craftingTable.x, this.craftingTable.y);
       if (d < closestDist) {
         closest = { type: 'craftingTable', dist: d, obj: this.craftingTable };
+        closestDist = d;
+      }
+    }
+
+    // Cottages - enter house
+    for (const cottage of this.cottages) {
+      const d = dist(px, py, cottage.x, cottage.y);
+      if (d < closestDist) {
+        closest = { type: 'cottage', dist: d, obj: cottage };
         closestDist = d;
       }
     }
@@ -606,9 +637,16 @@ export class GameState {
       this.craftingMenuOpen = true;
       return true;
     }
+    if (target.type === 'cottage') {
+      this.inHouse = true;
+      this.currentCottage = target.obj;
+      return true;
+    }
     if (target.type === 'pig') {
       target.obj.alive = false;
-      this.player.rawMeat += PIG_MEAT_DROP;
+      let meat = PIG_MEAT_DROP;
+      if (this.player.hasPerk('meat_extra')) meat++;
+      this.player.rawMeat += meat;
       return true;
     }
 
@@ -630,12 +668,17 @@ export class GameState {
     const tree = t.obj;
     if (tree.canShake()) {
       if (tree.shake(dt)) {
-        this.player.fruit++;
+        let berries = 1;
+        if (this.player.hasPerk('berries_double')) berries++;
+        if (this.player.hasPerk('fruit_extra')) berries++;
+        this.player.fruit += berries;
       }
     } else if (tree.canChop()) {
       if (tree.chop(dt)) {
         audio.playChop();
-        this.player.wood++;
+        let wood = 1;
+        if (this.player.hasPerk('wood_extra')) wood++;
+        this.player.wood += wood;
       }
     }
     if (!tree.interacting) {
@@ -686,8 +729,13 @@ export class GameState {
     this.craftingMenuOpen = false;
   }
 
+  exitHouse() {
+    this.inHouse = false;
+    this.currentCottage = null;
+  }
+
   update(dt, input) {
-    if (this.gameOver || this.craftingMenuOpen) return;
+    if (this.gameOver || this.craftingMenuOpen || this.inHouse) return;
 
     // Eat food (F key)
     if (input.keys.eat) {
@@ -712,12 +760,12 @@ export class GameState {
       this.player.move(dx, dy, dt);
     }
 
-    // Consume hunger
-    this.player.consumeHunger(dt);
+    // Consume hunger (perk: Iron Stomach)
+    this.player.consumeHunger(dt, this.player.hasPerk('hunger_slow'));
 
-    // Fire consumes fuel and cooks meat
-    this.campfire.consumeFuel(dt);
-    this.campfire.updateCooking(dt);
+    // Fire consumes fuel and cooks meat (perks: Fire Keeper, Master Chef)
+    this.campfire.consumeFuel(dt, this.player.hasPerk('fire_slow'));
+    this.campfire.updateCooking(dt, this.player.hasPerk('cook_faster'));
 
     // Spawn blue orbs occasionally at map edge
     this.orbSpawnTimer -= dt;
@@ -776,7 +824,8 @@ export class GameState {
         const dToCenter = dist(pig.x, pig.y, this.campfire.x, this.campfire.y);
         if (dToCenter <= ffRadius) {
           pig.alive = false;
-          this.meatDrops.push(new MeatDrop(pig.x, pig.y, PIG_MEAT_DROP));
+          let meat = PIG_MEAT_DROP + (this.player.hasPerk('meat_extra') ? 1 : 0);
+          this.meatDrops.push(new MeatDrop(pig.x, pig.y, meat));
         }
       }
       pig.update(dt, this.player.x, this.player.y);
@@ -789,13 +838,15 @@ export class GameState {
         const dToCenter = dist(wolf.x, wolf.y, this.campfire.x, this.campfire.y);
         if (dToCenter <= ffRadius) {
           wolf.alive = false;
-          this.meatDrops.push(new MeatDrop(wolf.x, wolf.y, WOLF_MEAT_DROP));
+          let meat = WOLF_MEAT_DROP + (this.player.hasPerk('meat_extra') ? 1 : 0);
+          this.meatDrops.push(new MeatDrop(wolf.x, wolf.y, meat));
           continue;
         }
       }
       if (!wolf.alive) continue;
+      const fireMult = this.player.hasPerk('fire_radius') ? 1.2 : 1;
       const lightSources = [
-        { x: this.campfire.x, y: this.campfire.y, radius: this.campfire.getLightRadius() },
+        { x: this.campfire.x, y: this.campfire.y, radius: this.campfire.getLightRadius(fireMult) },
         ...this.cottages.map(c => ({ x: c.x, y: c.y, radius: c.getLightRadius() })),
       ];
       const killed = wolf.update(dt, this.player.x, this.player.y, playerInLight, lightSources);

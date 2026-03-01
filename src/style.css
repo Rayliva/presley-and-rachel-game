@@ -265,3 +265,165 @@ body {
 .craft-close-btn:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* House overlay */
+#house-overlay {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.house-container {
+  text-align: center;
+}
+
+#house-canvas {
+  display: block;
+  background: #3e2723;
+  border-radius: var(--radius);
+  margin: 0 auto;
+}
+
+.house-hint {
+  margin-top: var(--space-md);
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* House mini-game overlay */
+.house-game-content {
+  background: var(--color-surface);
+  padding: var(--space-lg);
+  border-radius: var(--radius);
+  max-width: 420px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.house-game-content h2 {
+  font-size: 1.25rem;
+  margin-bottom: var(--space-md);
+  color: var(--color-accent);
+  text-align: center;
+}
+
+.house-game-content .game-board {
+  display: inline-grid;
+  gap: 4px;
+  margin: var(--space-md) auto;
+  padding: var(--space-md);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+}
+
+.house-game-content .game-cell {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.house-game-content .game-cell:hover:not(.locked) {
+  background: rgba(124, 184, 124, 0.3);
+}
+
+.house-game-content .game-cell.locked {
+  cursor: default;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.house-game-content .game-cell.selected {
+  background: rgba(124, 184, 124, 0.4);
+  border-color: var(--color-accent);
+}
+
+.house-game-content .game-cell.x { color: #7cb87c; }
+.house-game-content .game-cell.o { color: #e67e22; }
+.house-game-content .game-cell.r { color: #e74c3c; }
+.house-game-content .game-cell.y { color: #f1c40f; }
+
+.house-game-content .game-result {
+  text-align: center;
+  font-size: 1.1rem;
+  margin: var(--space-md) 0;
+  font-weight: 600;
+}
+
+.house-game-content .game-result.win { color: var(--color-accent); }
+.house-game-content .game-result.lose { color: var(--color-danger); }
+.house-game-content .game-result.tie { color: #f39c12; }
+.house-game-content .game-result.perk { color: #9b59b6; }
+
+.house-game-close {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 1rem;
+  background: var(--color-accent);
+  color: var(--color-bg);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.house-game-close:hover {
+  background: #8ed08e;
+}
+
+/* Perks bar - right side */
+.perks-bar {
+  position: fixed;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 50;
+}
+
+.perk-icon {
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent);
+  border-radius: 10px;
+  cursor: help;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.perk-icon:hover {
+  transform: scale(1.1);
+}
+
+.perk-tooltip {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  border-radius: 6px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+
+.perk-icon:hover .perk-tooltip {
+  opacity: 1;
+}

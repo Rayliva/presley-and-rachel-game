@@ -36,7 +36,7 @@
       <main class="game-main">
         <canvas id="game-canvas"></canvas>
         <p class="instruction">
-          WASD to move · E to interact (trees, fire, pigs, treasure chests, crafting table) · F to eat · Coal fills fire completely
+          WASD to move · E to interact (cottages, trees, fire, pigs, treasure chests, crafting table) · F to eat · Coal fills fire completely
         </p>
       </main>
       <div id="game-over-overlay" class="overlay hidden">
@@ -54,6 +54,16 @@
           <button type="button" class="craft-close-btn" id="crafting-close-btn">Close (ESC)</button>
         </div>
       </div>
+      <div id="house-overlay" class="overlay hidden">
+        <div class="house-container">
+          <canvas id="house-canvas"></canvas>
+          <p class="house-hint">WASD to move · E to interact with games or exit</p>
+        </div>
+      </div>
+      <div id="house-game-overlay" class="overlay hidden">
+        <div class="house-game-content" id="house-game-content"></div>
+      </div>
+      <div id="perks-bar" class="perks-bar"></div>
     </div>
     <script type="module" src="src/main.js"></script>
   </body>
