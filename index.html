@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Campfire Survival - Keep the Fire Alive</title>
+    <link rel="stylesheet" href="src/style.css" />
+  </head>
+  <body>
+    <div class="game-container">
+      <header class="game-header">
+        <h1>Campfire Survival</h1>
+        <div class="hud">
+          <div class="hud-item">
+            <span class="hud-label">Hunger</span>
+            <div class="bar-container">
+              <div class="bar hunger-bar" id="hunger-bar"></div>
+            </div>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">Fire Fuel</span>
+            <div class="bar-container">
+              <div class="bar fuel-bar" id="fuel-bar"></div>
+            </div>
+          </div>
+          <div class="hud-item inventory">
+            <span class="hud-label">Wood: <strong id="wood-count">0</strong></span>
+            <span class="hud-label">Coal: <strong id="coal-count">0</strong></span>
+            <span class="hud-label">Berries: <strong id="fruit-count">0</strong></span>
+            <span class="hud-label">Raw: <strong id="raw-meat-count">0</strong></span>
+            <span class="hud-label">Cooked: <strong id="cooked-meat-count">0</strong></span>
+            <span class="hud-label">Meals: <strong id="meals-count">0</strong></span>
+          </div>
+        </div>
+      </header>
+      <main class="game-main">
+        <canvas id="game-canvas"></canvas>
+        <p class="instruction">
+          WASD to move · E to interact (trees, fire, pigs, treasure chests, crafting table) · F to eat · Coal fills fire completely
+        </p>
+      </main>
+      <div id="game-over-overlay" class="overlay hidden">
+        <div class="overlay-content">
+          <h2>Game Over</h2>
+          <p id="game-over-message">The fire went out...</p>
+          <button type="button" class="restart-btn" id="restart-btn">Play Again</button>
+        </div>
+      </div>
+      <div id="crafting-overlay" class="overlay hidden">
+        <div class="crafting-content">
+          <h2>Crafting</h2>
+          <p class="crafting-hint">Combine meat and berries for better food. ESC to close.</p>
+          <div class="crafting-recipes" id="crafting-recipes"></div>
+          <button type="button" class="craft-close-btn" id="crafting-close-btn">Close (ESC)</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>
