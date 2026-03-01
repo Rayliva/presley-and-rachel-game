@@ -63,3 +63,7 @@ export const COAL_FUEL_VALUE = FIRE_FUEL_MAX;  // coal fills fire completely
 
 // Crafting - fruit from trees = berries
 export const CRAFTING_TABLE_SPAWN_ONCE = true;  // only one crafting table can exist
+
+// Cottages - little homes at map edges with porch lights that repel wolves
+export const COTTAGE_COUNT = 6;
+export const PORCH_LIGHT_RADIUS = 70;  // smaller than fire, keeps wolves away

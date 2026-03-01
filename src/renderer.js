@@ -87,7 +87,7 @@ export class Renderer {
       }
     }
 
-    const { campfire, player, trees, pigs, wolves, orbs, meatDrops, treasureChests, craftingTable, forcefieldActive } = this.gameState;
+    const { campfire, player, trees, pigs, wolves, orbs, meatDrops, treasureChests, craftingTable, cottages, forcefieldActive } = this.gameState;
     const lightRadius = campfire.getLightRadius();
 
     // Draw forcefield (blue fire look) - same size as fire glow
@@ -128,6 +128,69 @@ export class Renderer {
       gradient.addColorStop(1, 'rgba(255, 100, 20, 0)');
       ctx.fillStyle = gradient;
       ctx.fillRect(fx - lightRadius, fy - lightRadius, lightRadius * 2, lightRadius * 2);
+    }
+
+    // Draw cottages with porch lights (log cabins, warm yellow glow repels wolves)
+    for (const cottage of cottages) {
+      const cx = cottage.x - this.cameraX + width / 2;
+      const cy = cottage.y - this.cameraY + height / 2;
+      const r = cottage.getLightRadius();
+      const gradient = ctx.createRadialGradient(cx, cy - 24, 0, cx, cy - 24, r);
+      gradient.addColorStop(0, 'rgba(255, 220, 120, 0.2)');
+      gradient.addColorStop(0.5, 'rgba(255, 200, 80, 0.1)');
+      gradient.addColorStop(1, 'rgba(255, 180, 60, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(cx - r, cy - 24 - r, r * 2, r * 2);
+      // Log cabin - brown roof
+      ctx.fillStyle = '#5c3d1e';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 72);
+      ctx.lineTo(cx - 54, cy);
+      ctx.lineTo(cx + 54, cy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#3d2914';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      // Log cabin walls - horizontal log rows with chinking
+      const logH = 6;
+      const wallW = 84;
+      const wallH = 60;
+      const wallLeft = cx - wallW / 2;
+      const wallTop = cy - 4;
+      ctx.fillStyle = '#8b6914';
+      ctx.fillRect(wallLeft, wallTop, wallW, wallH);
+      // Horizontal log lines
+      for (let i = 0; i <= wallH; i += logH) {
+        ctx.fillStyle = '#6b4423';
+        ctx.fillRect(wallLeft, wallTop + i, wallW, 4);
+        ctx.fillStyle = '#a67c52';
+        ctx.fillRect(wallLeft + 2, wallTop + i + 4, wallW - 4, 2);
+      }
+      // Log ends (vertical notches at corners)
+      ctx.fillStyle = '#5c3d1e';
+      ctx.fillRect(wallLeft - 4, wallTop, 8, wallH);
+      ctx.fillRect(wallLeft + wallW - 4, wallTop, 8, wallH);
+      ctx.strokeStyle = '#4a2f18';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(wallLeft, wallTop, wallW, wallH);
+      // Door
+      ctx.fillStyle = '#3d2914';
+      ctx.fillRect(cx - 12, cy + 6, 24, 42);
+      ctx.fillStyle = '#5c3d1e';
+      ctx.fillRect(cx - 10, cy + 8, 20, 38);
+      ctx.fillStyle = '#2d1f0f';
+      ctx.fillRect(cx + 4, cy + 12, 4, 30);
+      // Porch light above door
+      const pulse = 0.85 + Math.sin(performance.now() / 400) * 0.15;
+      ctx.fillStyle = `rgba(255, 230, 150, ${pulse})`;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 24, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff8e0';
+      ctx.beginPath();
+      ctx.arc(cx, cy - 24, 6, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // Draw blue orbs

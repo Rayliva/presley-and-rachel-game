@@ -47,6 +47,8 @@ import {
   TREASURE_CHEST_COAL_AMOUNT,
   TREASURE_CHEST_FOOD_AMOUNT,
   COAL_FUEL_VALUE,
+  COTTAGE_COUNT,
+  PORCH_LIGHT_RADIUS,
 } from './constants.js';
 
 function dist(ax, ay, bx, by) {
@@ -101,6 +103,20 @@ export class Campfire {
       this.cookedMeatReady++;
     }
     if (this.cookingMeat <= 0) this.cookingProgress = 0;
+  }
+}
+
+/**
+ * Cottage - little home at map edge with porch light that repels wolves (like fire)
+ */
+export class Cottage {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  getLightRadius() {
+    return PORCH_LIGHT_RADIUS;
   }
 }
 
@@ -205,7 +221,7 @@ export class Wolf {
     this.wanderTimer = 0;
   }
 
-  update(dt, playerX, playerY, playerInLight, fireX, fireY, fireRadius) {
+  update(dt, playerX, playerY, playerInLight, lightSources) {
     if (!this.alive) return false;
     const dToPlayer = dist(this.x, this.y, playerX, playerY);
 
@@ -234,12 +250,15 @@ export class Wolf {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Wolves avoid the fire - push out if inside light radius
-    const dToFire = dist(this.x, this.y, fireX, fireY);
-    if (dToFire < fireRadius && fireRadius > 0) {
-      const angleAway = Math.atan2(this.y - fireY, this.x - fireX);
-      this.x = fireX + Math.cos(angleAway) * fireRadius;
-      this.y = fireY + Math.sin(angleAway) * fireRadius;
+    // Wolves avoid all light sources (fire + porch lights) - push out if inside any
+    for (const light of lightSources) {
+      if (light.radius <= 0) continue;
+      const dToLight = dist(this.x, this.y, light.x, light.y);
+      if (dToLight < light.radius) {
+        const angleAway = Math.atan2(this.y - light.y, this.x - light.x);
+        this.x = light.x + Math.cos(angleAway) * light.radius;
+        this.y = light.y + Math.sin(angleAway) * light.radius;
+      }
     }
 
     this.x = clamp(this.x, 20, MAP_WIDTH * TILE_SIZE - 20);
@@ -374,6 +393,7 @@ export class GameState {
     this.trees = this.spawnTrees();
     this.pigs = this.spawnPigs();
     this.wolves = this.spawnWolves();
+    this.cottages = this.spawnCottages();
 
     this.orbs = [];
     this.meatDrops = [];
@@ -389,6 +409,25 @@ export class GameState {
     this.gameOver = false;
     this.gameOverReason = null;
     this.craftingMenuOpen = false;  // when true, game is paused
+  }
+
+  /** Spawn cottages near map edges with porch lights */
+  spawnCottages() {
+    const w = MAP_WIDTH * TILE_SIZE;
+    const h = MAP_HEIGHT * TILE_SIZE;
+    const m = ORB_EDGE_MARGIN;
+    // Fixed positions along edges - top, right, bottom, left
+    const positions = [
+      { x: m + 80, y: m },
+      { x: w - m - 80, y: m },
+      { x: w - m, y: m + 100 },
+      { x: w - m, y: h - m - 100 },
+      { x: m + 80, y: h - m },
+      { x: w - m - 80, y: h - m },
+      { x: m, y: m + 120 },
+      { x: m, y: h - m - 120 },
+    ].slice(0, COTTAGE_COUNT);
+    return positions.map(({ x, y }) => new Cottage(x, y));
   }
 
   /** Pick random position along map edge */
@@ -468,12 +507,14 @@ export class GameState {
   }
 
   isPlayerInLight() {
-    const r = this.campfire.getLightRadius();
-    const d = dist(
-      this.player.x, this.player.y,
-      this.campfire.x, this.campfire.y
-    );
-    return d <= r;
+    // Fire light
+    const fireR = this.campfire.getLightRadius();
+    if (dist(this.player.x, this.player.y, this.campfire.x, this.campfire.y) <= fireR) return true;
+    // Porch lights
+    for (const cottage of this.cottages) {
+      if (dist(this.player.x, this.player.y, cottage.x, cottage.y) <= cottage.getLightRadius()) return true;
+    }
+    return false;
   }
 
   getClosestInteractable() {
@@ -753,7 +794,11 @@ export class GameState {
         }
       }
       if (!wolf.alive) continue;
-      const killed = wolf.update(dt, this.player.x, this.player.y, playerInLight, this.campfire.x, this.campfire.y, this.campfire.getLightRadius());
+      const lightSources = [
+        { x: this.campfire.x, y: this.campfire.y, radius: this.campfire.getLightRadius() },
+        ...this.cottages.map(c => ({ x: c.x, y: c.y, radius: c.getLightRadius() })),
+      ];
+      const killed = wolf.update(dt, this.player.x, this.player.y, playerInLight, lightSources);
       if (killed) {
         this.gameOver = true;
         this.gameOverReason = 'A wolf attacked you in the darkness!';
